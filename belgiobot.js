@@ -1,45 +1,46 @@
-const Discord = require("discord.js");
-let request = require('request');
-const config = require("./config.json");
-const client = new Discord.Client();
+const { Client } = require('discord.js');
+const client = new Client({disableMentions: 'everyone'});
+const { TOKEN, KEY, CITY } = require('./config.json');
+const fetch = require('node-fetch');
 
-var weather;
-let city = 'Leuven';
-let url = `http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${config.key}&units=metric`
+// API REQUEST
+let url = `http://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${KEY}&units=metric`
 
-request(url, function (err, response, body) {
-    if(err){
-      console.log('error:', err);
-    } else {
-        weather = JSON.parse(body);
-    }
-  });
+async function get() {
+    const response = await fetch(url);
+    let data = await response.json();
+    return data.weather[0].main;
+}
 
-
-client.on("ready", ()=>{
-    console.log("[Bot online]");
-    client.user.setPresence({
-        activity: {
-            name: "piove?",
-            type: 3,
-        },
-    });
+client.on('ready', () => {
+    console.log("ready");
+    client.user.setPresence(
+        {
+            activity: {
+                name: "Se piove",
+                type: 3
+            },
+            status: "dnd"
+        }
+    )
 })
 
-client.on("message", msg => {
-    if (msg.content === "piove?") {
-        if (weather.weather[0].main == "Rain" || weather.weather[0].main == "Thunderstorm") {
-            msg.channel.send("Sì :cloud_rain:");
-        } else {
-            msg.channel.send("No :sunny:");
+client.on('message', message => {
+    let channel = message.channel;
+    if(message.content === "piove?" || message.content === "Piove?") {
+        let data = get();
+        if(data == "Rain" || data == "Thunderstorm") {
+            channel.send("Sì :cloud_rain:");
+            setInterval(() => {
+                if(data == "Rain" || data == "Thunderstorm") {
+                    channel.send("Sta piovendo. :cloud_rain:");
+                }
+            }, 3600000);
+        }
+        else {
+            channel.send("No :sunny:");
         }
     }
 })
 
-setInterval(() => {
-    if (weather.weather[0].main == "Rain" || weather.weather[0].main == "Thunderstorm") {
-        msg.channel.send("Piove :cloud_rain:");
-    }
-}, 3600000);
-
-client.login(config.token);
+client.login(TOKEN);
